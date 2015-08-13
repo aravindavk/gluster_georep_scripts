@@ -1,4 +1,10 @@
-#!/usr/bin/python
+# -*- coding: utf-8 -*-
+"""
+    schedule_georep.py
+    :copyright: (c) 2015 by Aravinda VK <mail@aravindavk.in>
+    :license: MIT, see LICENSE for more details.
+"""
+
 import time
 import subprocess
 import xml.etree.cElementTree as etree
