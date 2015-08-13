@@ -11,9 +11,10 @@ Geo-rep runs continuously once started. It is very difficult to schedule to run 
 4. If checkpoint complete, Stop Geo-replication
 
 **Usage:**
-python schedule_georep.py <MASTERVOL> <SLAVEHOST> <SLAVEVOL>
+
+    python schedule_georep.py <MASTERVOL> <SLAVEHOST> <SLAVEVOL>
 
 For example,
 
-python schedule_georep.py gv1 fvm1 gv2
+    python schedule_georep.py gv1 fvm1 gv2
 
