@@ -40,3 +40,39 @@ to human readable :)
 For example,
 
     python glusterclparser.py /bricks/b1/.glusterfs/changelogs/CHANGELOG.1439463377
+
+
+## 3. Helper Tool to find GFID
+
+To get GFID of a file(works both in Gluster Mount and in Backend)
+
+    python georephelper.py gfid <PATH>
+
+For example,
+
+    python georephelper.py gfid /mnt/gv1/f1
+    python georephelper.py gfid /bricks/b2/f1
+
+
+## 4. Helper Tool to find Xtime
+
+To get xtime of a file or dir,
+
+    python georephelper.py xtime <PATH> <MASTER UUID>
+
+For example,
+
+    python georephelper.py xtime /mnt/gv1/f1 346d1076-05b6-4a59-9947-1e7d31a66294
+    python georephelper.py xtime /bricks/b2/f1 346d1076-05b6-4a59-9947-1e7d31a66294
+
+
+## 5. Helper Tool to find Stime
+
+To get stime of a file or dir,
+
+    python georephelper.py stime <PATH> <MASTER UUID> <SLAVE UUID>
+
+For example,
+
+    python georephelper.py stime /mnt/gv1/ 346d1076-05b6-4a59-9947-1e7d31a66294 169b8fbd-e1ec-419d-af63-215eaf69d621
+    python georephelper.py stime /bricks/b2 346d1076-05b6-4a59-9947-1e7d31a66294 169b8fbd-e1ec-419d-af63-215eaf69d621
