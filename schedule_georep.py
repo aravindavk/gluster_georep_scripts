@@ -126,6 +126,56 @@ def get_georep_status(mastervol, slavehost, slavevol):
     return value
 
 
+def get_summary(master_bricks, mastervol, slavehost, slavevol):
+    """
+    Wrapper function around Geo-rep Status and Gluster Volume Info
+    This combines the output from Bricks list and Geo-rep Status.
+    If a Master Brick node is down or Status is faulty then increments
+    the faulty counter. It also collects the checkpoint status from all
+    workers and compares with Number of Bricks.
+    """
+    checkpoints_complete_count = 0
+    num_bricks = len(master_bricks)
+    num_faulty = 0
+    num_active_bricks = 0
+    num_passive_bricks = 0
+    num_down = 0
+    down_nodes = []
+    faulty_nodes = []
+
+    georep_status = get_georep_status(mastervol, slavehost, slavevol)
+    for b in master_bricks:
+        if georep_status.get(b, None) is not None:
+            if georep_status.get(b)["status"] == "Active":
+                num_active_bricks += 1
+
+            if georep_status.get(b)["status"] == "Passive":
+                num_passive_bricks += 1
+
+            if georep_status.get(b)["checkpoint_status"] == "Yes":
+                checkpoints_complete_count += 1
+
+            if georep_status.get(b)["status"].lower() == "faulty":
+                num_faulty += 1
+                faulty_nodes.append(b)
+        else:
+            # If a Master Brick node is down
+            num_down += 1
+            down_nodes.append(b)
+
+    return {
+        "num_bricks": num_bricks,
+        "checkpoints_complete_count": checkpoints_complete_count,
+        "num_faulty": num_faulty,
+        "num_down": num_down,
+        "ok": ((num_active_bricks == checkpoints_complete_count) and
+               num_faulty == 0 and num_down == 0),
+        "down_nodes": down_nodes,
+        "faulty_nodes": faulty_nodes,
+        "status_ok": (num_faulty == 0 and num_down == 0)
+    }
+
+
 def is_complete(master_bricks, mastervol, slavehost, slavevol):
     """
     Wrapper function around Geo-rep Status and Gluster Volume Info
@@ -173,26 +223,30 @@ def main(mastervol, slavehost, slavevol):
     with mount(mastervol) as mnt:
         execute(["touch", mnt])
 
+    # Sleep till Geo-rep initializes
+    time.sleep(60)
+
     # Loop to Check the Geo-replication Status and Checkpoint
     # If All Status OK and all Checkpoints complete,
     # Stop the Geo-replication and Log the Completeness
     while True:
-        checkpoint_complete, ok = is_complete(master_bricks, mastervol,
-                                              slavehost, slavevol)
-        chkpt_status = "COMPLETE" if checkpoint_complete else "NOT COMPLETE"
-        ok_status = "OK" if ok else "NOT OK"
+        resp = get_summary(master_bricks, mastervol,
+                           slavehost, slavevol)
+        chkpt_status = "COMPLETE" if resp["ok"] else "NOT COMPLETE"
+        ok_status = "OK" if resp["status_ok"] else "NOT OK"
         logger.info("[Turns %s] All Checkpoints %s, All status %s" %
                     (turns, chkpt_status, ok_status))
-        if checkpoint_complete:
+        if resp["ok"]:
             logger.info("Stopping Geo-replication session now")
             cmd = ["gluster", "volume", "geo-replication", mastervol,
                    "%s::%s" % (slavehost, slavevol), "stop"]
             execute(cmd)
             break
 
-        if not ok:
+        if not resp["status_ok"]:
             # TODO: Action Item for Faulty state
-            logger.error("Geo-rep session is Faulty")
+            logger.error("Geo-rep session is Faulty: %s %s" %
+                         (",".resp["faulty_nodes"], ",".resp["down_nodes"]))
 
         # Increment the turns and Sleep for 10 sec
         turns += 1
