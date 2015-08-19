@@ -76,3 +76,28 @@ For example,
 
     python georephelper.py stime /mnt/gv1/ 346d1076-05b6-4a59-9947-1e7d31a66294 169b8fbd-e1ec-419d-af63-215eaf69d621
     python georephelper.py stime /bricks/b2 346d1076-05b6-4a59-9947-1e7d31a66294 169b8fbd-e1ec-419d-af63-215eaf69d621
+
+## 6. Helper Tool to get Volume Mark from Master
+
+Mount the Master Volume with Client PID -1, For example,
+
+    glusterfs --aux-gfid-mount --acl --volfile-server=localhost --volfile-id=gv1 --client-pid=-1 /mnt/gv1
+
+Run georephelper to get Volmark details,
+
+    python georephelper.py volmarkmaster <MOUNT_PATH>
+
+For example,
+
+    python georephelper.py volmarkmaster /mnt/gv1
+
+
+## 7. Helper Tool to get Volume Mark from Slave
+
+Run georephelper to get Volmark details,
+
+    python georephelper.py volmarkslave <MOUNT_PATH>
+
+For example,
+
+    python georephelper.py volmarkslave /mnt/gv2
