@@ -13,6 +13,7 @@ from errno import ENODATA
 import os
 import struct
 import tarfile
+from datetime import datetime
 
 
 PROG_DESCRIPTION = """
@@ -20,13 +21,19 @@ GlusterFS Georep Helper Tool
 """
 
 
+def human_time(ts):
+    return datetime.fromtimestamp(float(ts)).strftime("%Y-%m-%d %H:%M:%S")
+
+
 def mode_gfid(args):
     try:
         try:
-            print uuid.UUID(bytes=xattr.get(args.path, "trusted.gfid"))
+            print uuid.UUID(bytes=xattr.get(args.path, "trusted.gfid",
+                                            nofollow=True))
         except (IOError, OSError) as e:
             if e.errno == ENODATA:
-                print uuid.UUID(bytes=xattr.get(args.path, "glusterfs.gfid"))
+                print uuid.UUID(bytes=xattr.get(args.path, "glusterfs.gfid",
+                                                nofollow=True))
             else:
                 raise
     except (OSError, IOError) as e:
@@ -37,7 +44,8 @@ def mode_gfid(args):
 def mode_xtime(args):
     xtime_key = "trusted.glusterfs.%s.xtime" % args.master_uuid
     try:
-        print struct.unpack("!II", xattr.get(args.path, xtime_key))
+        print struct.unpack("!II", xattr.get(args.path, xtime_key,
+                                             nofollow=True))
     except (OSError, IOError) as e:
         print "[Error %s] %s" % (e.errno, os.strerror(e.errno))
         sys.exit(-1)
@@ -47,7 +55,8 @@ def mode_stime(args):
     try:
         stime_key = "trusted.glusterfs.%s.%s.stime" % (args.master_uuid,
                                                        args.slave_uuid)
-        print struct.unpack("!II", xattr.get(args.path, stime_key))
+        print struct.unpack("!II", xattr.get(args.path, stime_key,
+                                             nofollow=True))
     except (OSError, IOError) as e:
         print "[Error %s] %s" % (e.errno, os.strerror(e.errno))
         sys.exit(-1)
@@ -63,12 +72,14 @@ def mode_volmarkmaster(args):
     try:
         vm = struct.unpack(fmt_string, xattr.get(
             args.path,
-            "trusted.glusterfs.volume-mark"))
+            "trusted.glusterfs.volume-mark",
+            nofollow=True))
         print "UUID        : %s" % uuid.UUID(
             "".join(['%02x' % x for x in vm[2:18]]))
         print "VERSION     : %s.%s" % vm[0:2]
         print "RETVAL      : %s" % vm[18]
-        print "VOLUME MARK : %s.%s" % vm[19:21]
+        print "VOLUME MARK : %s.%s (%s)" % (
+            vm[19], vm[20], human_time("%s.%s" % (vm[19], vm[20])))
     except (OSError, IOError) as e:
         if e.errno == ENODATA:
             pass
@@ -95,8 +106,9 @@ def mode_volmarkslave(args):
                 "".join(['%02x' % x for x in vm[2:18]]))
             print "VERSION     : %s.%s" % vm[0:2]
             print "RETVAL      : %s" % vm[18]
-            print "VOLUME MARK : %s.%s" % vm[19:21]
-            print "TIMEOUT     : %s" % vm[-1]
+            print "VOLUME MARK : %s.%s (%s)" % (
+                vm[19], vm[20], human_time("%s.%s" % (vm[19], vm[20])))
+            print "TIMEOUT     : %s (%s)" % (vm[-1], human_time(vm[-1]))
         except (OSError, IOError) as e:
             if e.errno == ENODATA:
                 pass

@@ -71,43 +71,37 @@ def get_num_tokens(data, tokens, version=Version.V11):
         return getattr(cls_numtokens, data[tokens[0]])
 
 
-def process_record(data, tokens, changelog_ts):
+def process_record(data, tokens, changelog_ts, callback):
     if data[tokens[0]] in [ENTRY, META]:
         try:
             tokens[2] = GF_FOP[int(data[tokens[2]])]
         except ValueError:
             tokens[2] = "NULL"
 
-    sys.stdout.write("%s " % changelog_ts)
+    op_tokens = []
+    op_tokens.append(changelog_ts)
 
     for slc in tokens:
         try:
-            sys.stdout.write("%s " % data[slc])
+            op_tokens.append(data[slc])
         except TypeError:
+            # Slice is replaced into str in tokens[2] to update
+            # GF_FOP, So Type error when str is used as array index
             if isinstance(slc, str):
-                sys.stdout.write("%s " % slc)
+                op_tokens.append(slc)
             else:
                 raise
 
-    sys.stdout.write("\n")
+    callback(op_tokens)
 
 count = 0
 
 
-def print_tokens(data, tokens):
-    pass
-    # global count
-    # sys.stdout.write("%s" % len(tokens))
-    # for t in tokens:
-    #     sys.stdout.write("%s " % data[t])
-    # sys.stdout.write("\n")
-    # count += 1
-
-    # if count > 5:
-    #     sys.exit(0)
+def default_callback(tokens):
+    sys.stdout.write("{0}\n".format(" ".join(tokens)))
 
 
-def parse(filename):
+def parse(filename, callback=default_callback):
     data = None
     tokens = []
     changelog_ts = filename.rsplit(".")[-1]
@@ -124,6 +118,7 @@ def parse(filename):
         prev_char = ""
         next_char = ""
         for i, c in enumerate(data):
+            next_char = ""
             if len(data) >= (i + 2):
                 next_char = data[i+1]
 
@@ -133,15 +128,16 @@ def parse(filename):
                 in_record = True
                 continue
 
-            if c == SEP and prev_char != SEP and next_char != SEP:
+            if c == SEP and ((prev_char != SEP and next_char == SEP) or
+                             (prev_char == SEP and next_char != SEP) or
+                             (prev_char != SEP and next_char != SEP)):
                 tokens.append(slice(slice_start, i))
-                print_tokens(data, tokens)
                 slice_start = i+1
 
                 num_tokens = get_num_tokens(data, tokens, version)
 
                 if num_tokens == len(tokens):
-                    process_record(data, tokens, changelog_ts)
+                    process_record(data, tokens, changelog_ts, callback)
                     in_record = False
                     tokens = []
 
@@ -150,7 +146,7 @@ def parse(filename):
         # process last record
         if slice_start < (len(data) - 1):
             tokens.append(slice(slice_start, len(data)))
-            process_record(data, tokens, changelog_ts)
+            process_record(data, tokens, changelog_ts, callback)
             tokens = []
 
 
