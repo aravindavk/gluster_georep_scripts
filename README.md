@@ -41,6 +41,29 @@ For example,
 
     python glusterclparser.py /bricks/b1/.glusterfs/changelogs/CHANGELOG.1439463377
 
+To use this as library,
+
+	import glusterclparser
+
+	def parse_record(record):
+		print record
+
+	glusterclparser.parse("/bricks/b1/.glusterfs/changelogs/CHANGELOG.1439463377",
+	                      callback=parse_record)
+
+Attributes of record,
+
+	record.ts		= Timestamp(Changelog file suffix)
+	record.fop_type = E/D/M (Entry, Data, Meta)
+	record.gfid		= GFID
+	record.path		= Parent GFID/BASENAME
+	record.fop		= FOP Type, CREATE, MKDIR etc
+	record.path1	= Old Parent GFID/BASENAME in case of RENAME
+	record.path2	= New Parent GFID/BASENAME in case of RENAME
+	record.mode		= Mode if FOP is CREATE, MKNOD, MKDIR
+	record.uid		= UID if FOP is CREATE, MKNOD, MKDIR
+	record.gid		= GID if FOP is CREATE, MKNOD, MKDIR
+
 
 ## 3. Helper Tool to find GFID
 

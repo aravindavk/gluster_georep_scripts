@@ -53,6 +53,62 @@ class Version:
     V12 = "v1.2"
 
 
+class Record(object):
+    def __init__(self, **kwargs):
+        self.ts = kwargs.get("ts", None)
+        self.fop_type = kwargs.get("fop_type", None)
+        self.gfid = kwargs.get("gfid", None)
+        self.path = kwargs.get("path", None)
+        self.fop = kwargs.get("fop", None)
+        self.path1 = kwargs.get("path1", None)
+        self.path2 = kwargs.get("path2", None)
+        self.mode = kwargs.get("mode", None)
+        self.uid = kwargs.get("uid", None)
+        self.gid = kwargs.get("gid", None)
+
+    def create_mknod_mkdir(self, **kwargs):
+        self.path = kwargs.get("path", None)
+        self.fop = kwargs.get("fop", None)
+        self.mode = kwargs.get("mode", None)
+        self.uid = kwargs.get("uid", None)
+        self.gid = kwargs.get("gid", None)
+
+    def metadata(self, **kwargs):
+        self.fop = kwargs.get("fop", None)
+
+    def rename(self, **kwargs):
+        self.fop = kwargs.get("fop", None)
+        self.path1 = kwargs.get("path1", None)
+        self.path2 = kwargs.get("path2", None)
+
+    def link_symlink_unlink_rmdir(self, **kwargs):
+        self.path = kwargs.get("path", None)
+        self.fop = kwargs.get("fop", None)
+
+    def __unicode__(self):
+        if self.fop_type == "D":
+            return "{ts} {fop_type} {gfid}".format(**self.__dict__)
+        elif self.fop_type == "M":
+            return "{ts} {fop_type} {gfid} {fop}".format(**self.__dict__)
+        elif self.fop_type == "E":
+            if self.fop in ["CREATE", "MKNOD", "MKDIR"]:
+                return ("{ts} {fop_type} {gfid} {fop} "
+                        "{path} {mode} {uid} {gid}".format(**self.__dict__))
+            elif self.fop == "RENAME":
+                return ("{ts} {fop_type} {gfid} {fop} "
+                        "{path1} {path2}".format(**self.__dict__))
+            elif self.fop in ["LINK", "SYMLINK", "UNLINK", "RMDIR"]:
+                return ("{ts} {fop_type} {gfid} {fop} "
+                        "{path}".format(**self.__dict__))
+            else:
+                return repr(self.__dict__)
+        else:
+            return repr(self.__dict__)
+
+    def __str__(self):
+        return unicode(self).encode('utf-8')
+
+
 def get_num_tokens(data, tokens, version=Version.V11):
     if version == Version.V11:
         cls_numtokens = NumTokens_V11
@@ -78,27 +134,29 @@ def process_record(data, tokens, changelog_ts, callback):
         except ValueError:
             tokens[2] = "NULL"
 
-    op_tokens = []
-    op_tokens.append(changelog_ts)
+    record = Record(ts=int(changelog_ts), fop_type=data[tokens[0]],
+                    gfid=data[tokens[1]])
+    if data[tokens[0]] == META:
+        record.metadata(fop=tokens[2])
+    elif data[tokens[0]] == ENTRY:
+        if tokens[2] in ["CREATE", "MKNOD", "MKDIR"]:
+            record.create_mknod_mkdir(fop=tokens[2],
+                                      path=data[tokens[6]],
+                                      mode=int(data[tokens[3]]),
+                                      uid=int(data[tokens[4]]),
+                                      gid=int(data[tokens[5]]))
+        elif tokens[2] == "RENAME":
+            record.rename(fop=tokens[2],
+                          path1=data[tokens[3]],
+                          path2=data[tokens[4]])
+        if tokens[2] in ["LINK", "SYMLINK", "UNLINK", "RMDIR"]:
+            record.rename(fop=tokens[2],
+                          path=data[tokens[3]])
+    callback(record)
 
-    for slc in tokens:
-        try:
-            op_tokens.append(data[slc])
-        except TypeError:
-            # Slice is replaced into str in tokens[2] to update
-            # GF_FOP, So Type error when str is used as array index
-            if isinstance(slc, str):
-                op_tokens.append(slc)
-            else:
-                raise
 
-    callback(op_tokens)
-
-count = 0
-
-
-def default_callback(tokens):
-    sys.stdout.write("{0}\n".format(" ".join(tokens)))
+def default_callback(record):
+    sys.stdout.write("{0}\n".format(record))
 
 
 def parse(filename, callback=default_callback):
